@@ -108,9 +108,9 @@ namespace EventStore.Projections.Core.Services.Processing
             return _projectionConfig.CheckpointsEnabled;
         }
 
-        public override bool GetIsPartitioned()
+        public override bool GetRequiresRootPartition()
         {
-            return true;
+            return false;
         }
 
         public override bool GetProducesRunningResults()
