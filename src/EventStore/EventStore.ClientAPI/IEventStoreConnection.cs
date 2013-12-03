@@ -50,6 +50,10 @@ namespace EventStore.ClientAPI
     /// </remarks>
     public interface IEventStoreConnection : IDisposable
     {
+        /// <summary>
+        /// Gets the name of this connection. A connection name can be used for disambiguation
+        /// in log files.
+        /// </summary>
         string ConnectionName { get; }
 
         /// <summary>
@@ -81,6 +85,8 @@ namespace EventStore.ClientAPI
         /// </summary>
         /// <param name="stream">The name of the stream to be deleted</param>
         /// <param name="expectedVersion">The expected version the stream should have when being deleted. <see cref="ExpectedVersion"/></param>
+        /// <param name="hardDelete">Indicator for tombstoning vs soft-deleting the stream. Tombstoned streams can never be recreated. Soft-deleted streams
+        /// can be written to again, but the EventNumber sequence will not start from 0.</param>
         /// <param name="userCredentials">The optional user credentials to perform operation with.</param>
         void DeleteStream(string stream, int expectedVersion, bool hardDelete, UserCredentials userCredentials = null);
 
@@ -98,6 +104,8 @@ namespace EventStore.ClientAPI
         /// </summary>
         /// <param name="stream">The name of the stream to delete.</param>
         /// <param name="expectedVersion">The expected version that the streams should have when being deleted. <see cref="ExpectedVersion"/></param>
+        /// <param name="hardDelete">Indicator for tombstoning vs soft-deleting the stream. Tombstoned streams can never be recreated. Soft-deleted streams
+        /// can be written to again, but the EventNumber sequence will not start from 0.</param>
         /// <param name="userCredentials">The optional user credentials to perform operation with.</param>
         /// <returns>A <see cref="Task"/> that can be awaited upon by the caller.</returns>
         Task DeleteStreamAsync(string stream, int expectedVersion, bool hardDelete, UserCredentials userCredentials = null);
@@ -423,5 +431,38 @@ namespace EventStore.ClientAPI
         void SetSystemSettings(SystemSettings settings, UserCredentials userCredentials = null);
         
         Task SetSystemSettingsAsync(SystemSettings settings, UserCredentials userCredentials = null);
+
+        /// <summary>
+        /// Fired when an <see cref="IEventStoreConnection"/> connects to an Event Store server.
+        /// </summary>
+        event EventHandler<ClientConnectionEventArgs> Connected;
+
+        /// <summary>
+        /// Fired when an <see cref="IEventStoreConnection"/> is disconnected from an Event Store server
+        /// by some means other than by calling the <see cref="Close"/> method.
+        /// </summary>
+        event EventHandler<ClientConnectionEventArgs> Disconnected;
+
+        /// <summary>
+        /// Fired when an <see cref="IEventStoreConnection"/> is attempting to reconnect to an Event Store
+        /// server following a disconnection.
+        /// </summary>
+        event EventHandler<ClientReconnectingEventArgs> Reconnecting;
+
+        /// <summary>
+        /// Fired when an <see cref="IEventStoreConnection"/> is closed either using the <see cref="Close"/>
+        /// method, or when reconnection limits are reached without a successful connection being established.
+        /// </summary>
+        event EventHandler<ClientClosedEventArgs> Closed;
+
+        /// <summary>
+        /// Fired when an error is thrown on an <see cref="IEventStoreConnection"/>.
+        /// </summary>
+        event EventHandler<ClientErrorEventArgs> ErrorOccurred;
+
+        /// <summary>
+        /// Fired when a client fails to authenticate to an Event Store server.
+        /// </summary>
+        event EventHandler<ClientAuthenticationFailedEventArgs> AuthenticationFailed;
     }
 }

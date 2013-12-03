@@ -47,7 +47,7 @@ namespace esquery
                     case "append":
                         var append = EatFirstN(3, command);
                         if (append.Count != 4) return new InvalidCommandResult(command);
-                        return Append(append[1], append[2], append[3]);
+                        return Append(state.Args.BaseUri, append[1], append[2], append[3]);
                     case "h":
                     case "help":
                         return new HelpCommandResult();
@@ -65,9 +65,9 @@ namespace esquery
                         return new InvalidCommandResult(command);
                 }
             }
-            catch
+            catch(Exception ex)
             {
-                return new InvalidCommandResult(command);
+                return new ExceptionResult(command, ex);
             }
         }
 
@@ -115,9 +115,13 @@ namespace esquery
                 var completed = json["status"].Value<string>().StartsWith("Completed");   
                 var faultReason = json["stateReason"].Value<string>();
                 var streamurl = json["resultStreamUrl"];
+                var cancelurl = json["disableCommandUrl"];
                 Uri resulturi = null;
                 if(streamurl != null)
                     resulturi = new Uri(streamurl.Value<string>());
+                Uri canceluri = null;
+                if(cancelurl != null)
+                    canceluri = new Uri(cancelurl.Value<string>());
                 var progress = json["progress"].Value<decimal>();
                
                 return new QueryInformation() {
@@ -125,14 +129,14 @@ namespace esquery
                     FaultReason = faultReason, 
                     ResultUri = resulturi, 
                     Progress=progress, 
-                    Completed=completed
+                    Completed=completed,
+                    CancelUri = canceluri
                 };
             }
         }
 
         private static Uri GetNamedLink(JObject feed, string name)
         {
-            JToken token;
             var links = feed["links"];
             if (links == null) return null;
             return (from item in links
@@ -174,7 +178,7 @@ namespace esquery
             var request = (HttpWebRequest) WebRequest.Create(new Uri(uri.AbsoluteUri + "?embed=body"));
             request.Credentials = credential;
             request.Accept = "application/vnd.eventstore.atom+json";
-            request.Headers.Add("ES-LongPoll", "30"); //add long polling
+            request.Headers.Add("ES-LongPoll", "1"); //add long polling
             using (var response = request.GetResponse())
             {
                 var json = JObject.Parse(new StreamReader(response.GetResponseStream()).ReadToEnd());
@@ -212,7 +216,6 @@ namespace esquery
                     var request = (HttpWebRequest) WebRequest.Create(new Uri(c["uri"].Value<string>()));
                     request.Credentials = credential;
                     request.Accept = "application/json";
-                    request.Headers.Add("ES-LongPoll", "30"); //add long polling
                     using (var response = request.GetResponse())
                     {
                         return new StreamReader(response.GetResponseStream()).ReadToEnd();
@@ -278,7 +281,6 @@ namespace esquery
                         Console.WriteLine("\nCancelling query.");
                         return new SubscriptionCancelledResult();
                     }
-                    Thread.Sleep(500);
                 }
             }
             catch(Exception ex)
@@ -289,12 +291,19 @@ namespace esquery
 
         private static void Cancel(QueryInformation queryInformation)
         {
+            if (queryInformation.CancelUri == null) return;
+            var request = WebRequest.Create(queryInformation.CancelUri);
+            request.Method = "POST";
+            request.ContentLength = 0;
+            
+            using (var response = (HttpWebResponse)request.GetResponse())
+            {}
         }
 
-        private static AppendResult Append(string stream, string eventType, string data)
+        private static AppendResult Append(Uri baseUri, string stream, string eventType, string data)
         {
             var message = "[{'eventType':'" + eventType + "', 'eventId' :'" + Guid.NewGuid() + "', 'data' : " + data +"}]";
-            var request = WebRequest.Create("http://127.0.0.1:2113/streams/" + stream);
+            var request = WebRequest.Create(baseUri.AbsoluteUri + "streams/" + stream);
             request.Method = "POST";
             request.ContentType = "application/json";
             request.ContentLength = message.Length;
@@ -333,6 +342,23 @@ namespace esquery
         }
     }
 
+    class ExceptionResult
+    {
+        private readonly string _command;
+        private readonly Exception _exception;
+
+        public ExceptionResult(string command, Exception exception)
+        {
+            _command = command;
+            _exception = exception;
+        }
+
+        public override string ToString()
+        {
+            return "Command " + _command + " failed \n" + _exception.ToString();
+        }
+    }
+
     class SubscriptionCancelledResult
     {
         public override string ToString()
@@ -356,6 +382,7 @@ namespace esquery
         public decimal Progress;
         public Uri ResultUri;
         public bool Completed;
+        public Uri CancelUri;
     }
 
     class ErrorResult 

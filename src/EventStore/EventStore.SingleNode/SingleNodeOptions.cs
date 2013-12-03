@@ -58,6 +58,8 @@ namespace EventStore.SingleNode
         public int ProjectionThreads { get { return _helper.Get(() => ProjectionThreads); } }
         public int WorkerThreads { get { return _helper.Get(() => WorkerThreads); } }
 
+        public bool DisableScavengeMerging { get { return _helper.Get(() => DisableScavengeMerging); } }
+
         public string[] HttpPrefixes { get { return _helper.Get(() => HttpPrefixes); } }
         public bool EnableTrustedAuth { get { return _helper.Get(() => EnableTrustedAuth); } }
 
@@ -77,8 +79,8 @@ namespace EventStore.SingleNode
         {
 	        _helper = new OptsHelper(() => Configs, Opts.EnvPrefix, "singlenode-config.json");
             
-            _helper.Register(() => ShowHelp, Opts.ShowHelpCmd, Opts.ShowHelpEnv, Opts.ShowHelpJson, Opts.ShowHelpDefault, Opts.ShowHelpDescr);
-            _helper.Register(() => ShowVersion, Opts.ShowVersionCmd, Opts.ShowVersionEnv, Opts.ShowVersionJson, Opts.ShowVersionDefault, Opts.ShowVersionDescr);
+            _helper.Register(() => ShowHelp, Opts.ShowHelpCmd, Opts.ShowHelpEnv, Opts.ShowHelpJson, Opts.ShowHelpDefault, Opts.ShowHelpDescr, false, true);
+            _helper.Register(() => ShowVersion, Opts.ShowVersionCmd, Opts.ShowVersionEnv, Opts.ShowVersionJson, Opts.ShowVersionDefault, Opts.ShowVersionDescr, false, true);
             _helper.RegisterRef(() => LogsDir, Opts.LogsCmd, Opts.LogsEnv, Opts.LogsJson, Opts.LogsDefault, Opts.LogsDescr);
             _helper.RegisterArray(() => Configs, Opts.ConfigsCmd, Opts.ConfigsEnv, ",", Opts.ConfigsJson, Opts.ConfigsDefault, Opts.ConfigsDescr);
             _helper.RegisterArray(() => Defines, Opts.DefinesCmd, Opts.DefinesEnv, ",", Opts.DefinesJson, Opts.DefinesDefault, Opts.DefinesDescr, hidden: true);
@@ -112,6 +114,7 @@ namespace EventStore.SingleNode
             _helper.Register(() => PrepareTimeoutMs, Opts.PrepareTimeoutMsCmd, Opts.PrepareTimeoutMsEnv, Opts.PrepareTimeoutMsJson, Opts.PrepareTimeoutMsDefault, Opts.PrepareTimeoutMsDescr);
             _helper.Register(() => CommitTimeoutMs, Opts.CommitTimeoutMsCmd, Opts.CommitTimeoutMsEnv, Opts.CommitTimeoutMsJson, Opts.CommitTimeoutMsDefault, Opts.CommitTimeoutMsDescr);
             _helper.Register(() => Force, Opts.ForceCmd, Opts.ForceEnv, Opts.ForceJson, false, "Force usage on non-recommended environments such as Boehm GC");
+            _helper.Register(() => DisableScavengeMerging, Opts.DisableScavengeMergeCmd, Opts.DisableScavengeMergeEnv, Opts.DisableScavengeMergeJson, Opts.DisableScavengeMergeDefault, Opts.DisableScavengeMergeDescr);
         }
 
         public void Parse(params string[] args)

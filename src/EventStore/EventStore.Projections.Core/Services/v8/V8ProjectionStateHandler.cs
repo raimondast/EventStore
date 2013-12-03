@@ -185,7 +185,7 @@ namespace EventStore.Projections.Core.Services.v8
                 }
 
             }
-            catch (JsonException jex)
+            catch (JsonException)
             {
                 Console.Error.WriteLine(newState);
             }

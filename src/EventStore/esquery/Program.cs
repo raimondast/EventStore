@@ -1,5 +1,8 @@
-﻿using System;
+﻿#define TESTING
+
+using System;
 using System.Net;
+using System.Security;
 using System.Text;
 
 namespace esquery
@@ -58,14 +61,119 @@ namespace esquery
         
         private static Args ReadArgs(string[] args)
         {
+            var baseuri = new Uri("http://127.0.0.1:2113/");
+            
             if (args.Length == 1)
             {
                 Console.WriteLine("Server set to: " + args[0]);
-                return new Args(false, new Uri(args[0]), new NetworkCredential("admin", "changeit"));
+                baseuri = new Uri(args[0]);
+                return new Args(false, baseuri, GetValidatedNetworkCredential(baseuri));
             }
             Console.WriteLine("No server set defaulting to http://127.0.0.1:2113/");
-            return new Args(true, new Uri("http://127.0.0.1:2113/"), new NetworkCredential("admin", "changeit"));
+            return new Args(true, baseuri, GetValidatedNetworkCredential(baseuri));
         }
+
+        private static NetworkCredential GetValidatedNetworkCredential(Uri baseuri)
+        {
+            for (int i = 0; i < 5; i++)
+            {
+                Console.Write("username:");
+                var username = Console.ReadLine();
+                Console.Write("password:");
+                var password = ReadPassword();
+
+                var cred = new NetworkCredential(username, password);
+
+                if(TryValidatePassword(baseuri, cred))
+                {
+                    return cred;
+                } else
+                {
+                    Console.WriteLine("Invalid username/password");
+                }
+            }
+            Environment.Exit(1);
+            return null;
+        }
+
+        private static bool TryValidatePassword(Uri baseuri, NetworkCredential cred)
+        {
+            
+            var request = WebRequest.Create(baseuri.AbsoluteUri +"projections/transient?enabled=yes");
+            request.Method = "POST";
+            request.ContentType = "application/json";
+            request.ContentLength = 0;
+            request.Credentials = cred;
+            try
+            {
+                using (var response = (HttpWebResponse) request.GetResponse())
+                {
+                    return response.StatusCode != HttpStatusCode.Unauthorized;
+                }
+            }
+            catch (WebException ex)
+            {
+                var response = (HttpWebResponse)ex.Response;
+                return response.StatusCode != HttpStatusCode.Unauthorized;
+            }
+        }
+
+
+#if __MonoCS__
+        //mono apparently doesnt work with secure strings.
+        //TODO delete me when its no longer broken
+        private static string ReadPassword()
+        {
+            var ret = "";
+            while (true)
+            {
+                var info = Console.ReadKey(true);
+                if (info.Key == ConsoleKey.Enter)
+                {
+                    Console.WriteLine();
+                    Console.WriteLine();
+                    return ret;
+                }
+                if (info.Key == ConsoleKey.Backspace)
+                {
+                    if (ret.Length > 0)
+                    {
+                        ret = ret.Substring(0, ret.Length - 1);
+                    }
+                }
+                else
+                {
+                    ret += info.KeyChar;
+                }
+            }
+        }
+#else
+        private static SecureString ReadPassword()
+        {
+            var ret = new SecureString();
+            while (true)
+            {
+                var info = Console.ReadKey(true);
+                if (info.Key == ConsoleKey.Enter)
+                {
+                    Console.WriteLine();
+                    Console.WriteLine();
+                    return ret;
+                }
+                if (info.Key == ConsoleKey.Backspace)
+                {
+                    if (ret.Length > 0)
+                    {
+                        ret.RemoveAt(ret.Length - 1);
+                    }
+                }
+                else
+                {
+                    ret.AppendChar(info.KeyChar);
+                }
+            }
+        }
+#endif
 
         static void Main(string[] args)
         {
@@ -98,7 +206,6 @@ namespace esquery
     }
     class ConsoleHelper
     {
-
         public static bool IsPiped()
         {
             try
@@ -106,7 +213,7 @@ namespace esquery
                 var nothing = Console.KeyAvailable;
                 return false;
             }
-            catch (InvalidOperationException expected)
+            catch (InvalidOperationException)
             {
                 return true;
             }

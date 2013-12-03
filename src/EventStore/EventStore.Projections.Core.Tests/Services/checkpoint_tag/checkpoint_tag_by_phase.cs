@@ -3,6 +3,8 @@ using EventStore.Core.Data;
 using EventStore.Projections.Core.Services.Processing;
 using NUnit.Framework;
 
+#pragma warning disable 1718
+
 namespace EventStore.Projections.Core.Tests.Services.checkpoint_tag
 {
     [TestFixture]
@@ -72,3 +74,5 @@ namespace EventStore.Projections.Core.Tests.Services.checkpoint_tag
         }
     }
 }
+
+#pragma warning restore 1718
